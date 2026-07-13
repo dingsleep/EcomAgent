@@ -1,154 +1,191 @@
-# EcomAgent
+# EcomAgent｜电商智能客服 Agent
 
-Engineering-focused e-commerce customer service Agent demo built with a modern AI Agent stack.
+[![CI](https://github.com/dingsleep/EcomAgent/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dingsleep/EcomAgent/actions/workflows/ci.yml)
 
-## Architecture
+面向“云商城”场景的企业级电商智能客服 Agent。项目以 **ReAct 工具调用** 为核心，结合 RAG、MCP、多 Agent 协作、用户记忆、技能编排与可回放评测，完成订单、物流、商品、退款和投诉升级等客服闭环。
 
+> 订单、商品和物流信息均为 Mock 数据。本项目用于展示 Agent 编排与工程化能力，不连接真实交易系统。
+
+![EcomAgent 终端演示](docs/demo.gif)
+
+## 项目亮点
+
+- **双 Agent 模式**：支持单 Agent 直连处理，也支持路由器分派给售前、售后和投诉专家 Agent。
+- **可靠工具调用**：订单、物流、政策、退款状态等高频问题优先走确定性快速路径；投诉可调用升级工具形成闭环。
+- **RAG 知识检索**：Markdown 知识库经切分和向量化后，支持 Numpy（零额外服务）与 Chroma 两种检索后端。
+- **多层上下文管理**：短期记忆抽取、长期 JSON 记忆、会话持久化与历史摘要压缩协同工作。
+- **MCP 兼容与降级**：本地工具与 FastMCP 远程工具统一注册；远程服务不可达时自动降级到本地工具。
+- **可验证工程质量**：提供沙箱回放、过程/结果指标、LLM-as-Judge 评测，以及 Pytest 分层测试和 GitHub Actions CI。
+
+## 架构概览
+
+![EcomAgent 系统架构](docs/架构图.png)
+
+```text
+用户 → CLI（main.py） → 单 Agent / 多 Agent 编排 → 统一工具管理器 → 结构化客服回复
+                                                   ├─ 本地电商工具
+                                                   ├─ MCP 远程工具
+                                                   ├─ RAG 知识库
+                                                   ├─ 用户记忆与会话管理
+                                                   └─ SKILL.md 技能系统
+
+回放评测 + Pytest + GitHub Actions CI 为全链路提供质量保障
 ```
-main.py                      # CLI entry (single / multi-agent modes)
-├── app/
-│   ├── agent/               # Core Agent (ReAct loop + tools + RAG + memory + skills)
-│   ├── multi_agent/         # Multi-Agent orchestration (Router + presale/postsale/complaint)
-│   ├── mcp_client/          # MCP client (sync wrapper over Streamable HTTP)
-│   ├── evaluation/          # Evaluation framework (sandbox + metrics + LLM-as-Judge)
-│   ├── prompts/             # System prompts (agent / summarizer / evaluation)
-│   ├── schemas/             # Structured output (Pydantic)
-│   ├── config/              # Configuration (pydantic-settings)
-│   └── scripts/             # Offline scripts (build KB index / run eval)
-├── mcp_server/              # MCP Server (FastMCP, standalone process)
-└── tests/                   # Test suite
-```
 
-## Features
+## 核心能力
 
-| Capability | Implementation |
-|------------|---------------|
-| **Agent Paradigm** | ReAct (Thought → Action → Observation loop) |
-| **Structured Output** | OpenAI Structured Output / JSON fallback |
-| **Tool Calling** | OpenAI Function Calling + local/MCP dual channel |
-| **MCP Integration** | FastMCP Server (Streamable HTTP) + custom MCP Client |
-| **RAG** | Markdown knowledge base → Embedding → Vector search (Numpy / Chroma) |
-| **Multi-Agent** | Router intent classification → presale / postsale / complaint sub-agents |
-| **Memory** | Short-term (in-session LLM extraction) + Long-term (JSON cross-session) |
-| **Skill System** | Agent Skills open standard (progressive disclosure, SKILL.md) |
-| **Evaluation** | Sandbox replay + process/result dual-layer metrics + LLM-as-Judge |
-| **Conversation Mgmt** | LLM summary compression + JSON session persistence |
+| 能力 | 实现方式 |
+| --- | --- |
+| Agent 推理 | ReAct：思考 → 工具调用 → 观察 → 回复 |
+| 工具调用 | OpenAI Function Calling；本地与 MCP 双通道 |
+| 多 Agent | 意图路由 + 售前 / 售后 / 投诉子 Agent + 工具白名单 |
+| 知识检索 | Markdown 知识库 + Embedding + Numpy / Chroma 向量检索 |
+| 记忆系统 | 会话内短期记忆 + 跨会话 JSON 长期记忆 |
+| 技能系统 | Agent Skills 标准，按需加载 `SKILL.md` 指令 |
+| 对话管理 | 历史摘要压缩与会话 JSON 持久化 |
+| 评测体系 | 沙箱回放、工具调用忠实度、结果指标、LLM-as-Judge |
 
-## Quick Start
+## 快速开始
+
+### 1. 安装依赖
 
 ```bash
-# Install runtime dependencies
 pip install -r requirements.txt
-
-# Configure
-cp .env.example .env
-# Edit .env with your API key and model settings
-
-# Build RAG knowledge base index
-python -m app.scripts.build_kb_index
-
-# Start CLI
-python main.py
 ```
 
-For local development and tests, install the additional test dependency:
+如需运行单元测试：
 
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-## Usage
+### 2. 配置模型
 
-### Single Agent Mode (default)
+```bash
+# macOS / Linux
+cp .env.example .env
+
+# PowerShell
+Copy-Item .env.example .env
+```
+
+编辑 `.env`，至少填写：
+
+```env
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+MODEL_NAME=gpt-4o-mini
+```
+
+### 3. 构建知识库索引并启动
+
+```bash
+python -m app.scripts.build_kb_index
+python main.py
+```
+
+命令行中可输入 `quit` / `exit` 退出，`reset` 重置会话，`memory` 查看记忆，`skills` 查看可用技能。
+
+## 运行模式
+
+### 单 Agent 模式（默认）
 
 ```bash
 python main.py
 ```
 
-A single `EcomAgent` handles all intents with full tool access.
+单个 `EcomAgent` 持有完整工具集，根据问题自行决定是否检索知识库、调用工具或读取记忆。
 
-### Multi-Agent Mode
+### 多 Agent 协作模式
 
-Set in `.env`:
-```
+在 `.env` 设置：
+
+```env
 MULTI_AGENT_ENABLED=true
 ```
 
-Routes user intent to specialized sub-agents (presale / postsale / complaint) with tool-level permission isolation.
+系统会先进行意图路由，再分派到售前、售后或投诉 Agent。子 Agent 通过工具白名单隔离能力，例如投诉 Agent 无法执行退款申请。
 
-### MCP Integration
+### MCP 模式（可选）
+
+终端一启动 MCP Server：
 
 ```bash
-# Terminal 1: Start MCP Server
 python mcp_server/server.py
+```
 
-# Terminal 2: Enable MCP in .env and start Agent
-# MCP_ENABLED=true
+终端二在 `.env` 启用 MCP 后启动 Agent：
+
+```env
+MCP_ENABLED=true
+```
+
+```bash
 python main.py
 ```
 
-MCP Server exposes tools as a standardized remote service. Agent falls back to local tools on connection failure.
+MCP 服务未启动时，系统会提示连接失败并继续使用本地工具；这不会阻塞本地演示和单元测试。
 
-### Running Tests
+## 测试与评测
+
+### 离线单元测试
 
 ```bash
-# Deterministic tests used by GitHub Actions; no API key or MCP server required
 python -m pytest -m unit -q
+```
 
-# Live model/MCP regression tests; requires a configured .env
-python -m pytest tests/test_react_agent.py tests/test_agent.py -q
+当前离线单元测试覆盖快速路径、退款确认、投诉升级、评测指标与 MCP 降级等关键行为，无需有效模型 Key，也不会请求模型接口。
 
-# Full local suite (may include live and optional-dependency tests)
+### 完整测试集
+
+```bash
 python -m pytest tests/ -v
 ```
 
-GitHub Actions runs only the `unit` layer on push and pull requests. Agent, MCP and evaluation end-to-end tests require a valid model configuration; run them locally or in a separately configured workflow because model responses can vary.
+部分端到端测试依赖有效模型配置。
 
-### Running Evaluation
+### 构建检查
 
 ```bash
-# Full evaluation (with LLM-as-Judge)
-python -m app.scripts.run_eval
+python -m compileall app mcp_server
+```
 
-# Code-rule metrics only (fast, deterministic)
+### 回放评测
+
+```bash
+# 仅运行确定性代码指标
 python -m app.scripts.run_eval --no-judge
 
-# Multi-Agent mode evaluation
+# 单 Agent：包含 LLM 裁判
+python -m app.scripts.run_eval
+
+# 多 Agent：包含 LLM 裁判
 python -m app.scripts.run_eval --mode multi
 ```
 
-## Environment Variables
+本轮 10 条多 Agent 场景回放评测全部通过；快速路径上线后，相比原始 Agent 工具链路，平均 token 消耗下降约 89%。评测结果会受模型、提示词和数据集变化影响，建议在本地配置模型后复现。
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | **Required** | - |
-| `OPENAI_BASE_URL` | API endpoint | `https://api.openai.com/v1` |
-| `MODEL_NAME` | Model name | `gpt-4o-mini` |
-| `MCP_ENABLED` | Enable MCP | `false` |
-| `MULTI_AGENT_ENABLED` | Enable Multi-Agent | `false` |
-| `MEMORY_ENABLED` | Enable memory system | `true` |
-| `SKILLS_ENABLED` | Enable skill system | `true` |
-| `RAG_BACKEND` | Vector backend (`numpy` / `chroma`) | `numpy` |
-| `EMBEDDING_PROVIDER` | Embedding source (`openai` / `local`) | `local` |
+## 项目结构
 
-## Key Design Decisions
+```text
+main.py                         # CLI 入口，切换单/多 Agent 模式
+app/
+├── agent/                      # ReAct Agent、工具、RAG、记忆、技能
+├── multi_agent/                # 路由器、子 Agent、编排器
+├── mcp_client/                 # MCP 客户端与工具 Schema 转换
+├── evaluation/                 # 回放评测、指标与数据集
+├── prompts/                    # Agent、摘要、评测提示词
+├── schemas/                    # Pydantic 结构化输出
+├── config/                     # Pydantic Settings 配置
+└── scripts/                    # 构建知识库、运行评测脚本
+mcp_server/                     # FastMCP 独立服务
+tests/                          # 分主题测试与 unit 标记
+docs/                           # 架构图与终端演示素材
+```
 
-- **Agentic RAG over RAG-First**: Agent decides when to search knowledge base, avoiding unnecessary retrievals
-- **Tool whitelist over prompt constraints**: Sub-agents physically cannot call unauthorized tools (e.g., complaint agent has no `apply_refund`)
-- **Incremental summary compression**: Old messages are summarized with previous summary as context, preserving history across compressions
-- **LTM at session close**: Long-term memory extracted at session end to avoid contradictory intermediate facts
-- **Skill progressive disclosure**: Only skill catalog (~100 tokens) in system prompt; full SOP loaded on demand
-- **MCP graceful degradation**: Falls back to local tools when MCP Server is unreachable
+## 技术栈
 
-## Data Boundary
-
-Orders, products, logistics and coupons are in-memory Mock data. This project demonstrates Agent orchestration, tool contracts and evaluation design; it is not connected to a production commerce system.
-
-## Resume Description（中文）
-
-- 基于 ReAct、OpenAI Function Calling 与 Pydantic Structured Output 构建电商客服 Agent，覆盖订单、商品、物流和退款等工具工作流。
-- 设计本地工具/MCP 双通道调度与故障降级，并通过工具白名单隔离售前、售后、投诉三个子 Agent 的权限。
-- 实现双后端 RAG、会话记忆、Skill 按需加载和 Sandbox 评估框架，覆盖工具调用、Token 成本、回答质量与忠实度等指标。
+Python 3.10+ · OpenAI-compatible API · OpenAI Function Calling · Pydantic · FastMCP · Numpy / Chroma · Pytest · GitHub Actions
 
 ## License
 
