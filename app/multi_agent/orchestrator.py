@@ -8,6 +8,7 @@ from typing import Optional
 from openai import OpenAI
 
 from app.agent.storage import delete_session, load_session, save_session
+from app.agent.fast_path import try_fast_path
 from app.agent.summarizer import summarize
 from app.config.settings import settings
 from app.multi_agent.agents import AGENT_CONFIGS, SubAgent
@@ -89,6 +90,22 @@ class MultiAgentOrchestrator:
     def chat(self, user_input: str) -> CustomerServiceResponse:
         """路由 → 子 Agent 执行 → 结构化提取 → 返回结果。"""
         self.raw_messages.append({"role": "user", "content": user_input})
+
+        fast_response = try_fast_path(
+            user_input, self.agents["postsale"].tool_manager.execute_tool,
+        )
+        if fast_response is not None:
+            self.memory_manager.update_short_term(self.raw_messages[-6:])
+            self.raw_messages.append(
+                {"role": "assistant", "content": fast_response.model_dump_json(ensure_ascii=False)}
+            )
+            if len(self.raw_messages) > self.history_threshold:
+                self._compress_history()
+            save_session(
+                self.session_path, self.raw_messages, self.summary,
+                short_term_memory=self.memory_manager.stm_to_dict(),
+            )
+            return fast_response
 
         agent_key = self.router.route(user_input, self.raw_messages)
         agent = self.agents[agent_key]

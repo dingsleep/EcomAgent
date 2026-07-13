@@ -7,11 +7,28 @@
 import asyncio
 import json
 import threading
+from urllib.parse import urlparse
 
+import httpx
 from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+
+try:
+    from mcp.client.streamable_http import streamablehttp_client
+except ImportError:  # mcp < 1.19
+    from mcp.client.streamable_http import streamable_http_client as streamablehttp_client
 
 from app.mcp_client.converter import mcp_tools_to_openai
+
+
+def _http_client_factory(server_url: str):
+    """让本机 MCP 请求绕过环境代理，远程服务保持原有代理行为。"""
+    host = urlparse(server_url).hostname
+    trust_env = host not in {"localhost", "127.0.0.1", "::1"}
+
+    def factory(**kwargs):
+        return httpx.AsyncClient(trust_env=trust_env, **kwargs)
+
+    return factory
 
 
 class MCPClient:
@@ -24,6 +41,7 @@ class MCPClient:
         self._session: ClientSession | None = None
         self._connected = threading.Event()
         self._close_event: asyncio.Event | None = None
+        self._http_client_factory = _http_client_factory(server_url)
 
     def connect(self) -> list[dict]:
         """连接 MCP Server，发现工具，返回 OpenAI 格式的工具定义列表。"""
@@ -47,7 +65,10 @@ class MCPClient:
     async def _run(self, tool_definitions: list[dict], error_holder: list[Exception]):
         """后台协程：建立连接 → 发现工具 → 保持存活等待调用。"""
         try:
-            async with streamable_http_client(self._server_url) as (read, write, _):
+            async with streamablehttp_client(
+                self._server_url,
+                httpx_client_factory=self._http_client_factory,
+            ) as (read, write, _):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     self._session = session

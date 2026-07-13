@@ -19,6 +19,10 @@ build/
 *.swp
 *.swo
 
+# Local Git worktrees
+.worktrees/
+reports/
+
 # OS
 .DS_Store
 Thumbs.db

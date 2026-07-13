@@ -22,13 +22,13 @@ AGENT_CONFIGS = {
         "prompt": POSTSALE_PROMPT,
         "tools": {
             "query_order", "query_logistics", "apply_refund",
-            "list_user_orders", "search_knowledge", "load_skill",
+            "list_user_orders", "search_knowledge", "load_skill", "escalate_complaint",
         },
     },
     "complaint": {
         "name": "小云-投诉",
         "prompt": COMPLAINT_PROMPT,
-        "tools": {"query_order", "search_knowledge", "load_skill"},
+        "tools": {"query_order", "search_knowledge", "load_skill", "escalate_complaint"},
     },
 }
 

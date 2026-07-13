@@ -1,6 +1,6 @@
 # EcomAgent
 
-Enterprise-grade e-commerce customer service Agent system built with modern AI Agent stack.
+Engineering-focused e-commerce customer service Agent demo built with a modern AI Agent stack.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ main.py                      # CLI entry (single / multi-agent modes)
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install runtime dependencies
 pip install -r requirements.txt
 
 # Configure
@@ -49,6 +49,12 @@ python -m app.scripts.build_kb_index
 
 # Start CLI
 python main.py
+```
+
+For local development and tests, install the additional test dependency:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ## Usage
@@ -86,8 +92,17 @@ MCP Server exposes tools as a standardized remote service. Agent falls back to l
 ### Running Tests
 
 ```bash
+# Deterministic tests used by GitHub Actions; no API key or MCP server required
+python -m pytest -m unit -q
+
+# Live model/MCP regression tests; requires a configured .env
+python -m pytest tests/test_react_agent.py tests/test_agent.py -q
+
+# Full local suite (may include live and optional-dependency tests)
 python -m pytest tests/ -v
 ```
+
+GitHub Actions runs only the `unit` layer on push and pull requests. Agent, MCP and evaluation end-to-end tests require a valid model configuration; run them locally or in a separately configured workflow because model responses can vary.
 
 ### Running Evaluation
 
@@ -124,6 +139,16 @@ python -m app.scripts.run_eval --mode multi
 - **LTM at session close**: Long-term memory extracted at session end to avoid contradictory intermediate facts
 - **Skill progressive disclosure**: Only skill catalog (~100 tokens) in system prompt; full SOP loaded on demand
 - **MCP graceful degradation**: Falls back to local tools when MCP Server is unreachable
+
+## Data Boundary
+
+Orders, products, logistics and coupons are in-memory Mock data. This project demonstrates Agent orchestration, tool contracts and evaluation design; it is not connected to a production commerce system.
+
+## Resume Description（中文）
+
+- 基于 ReAct、OpenAI Function Calling 与 Pydantic Structured Output 构建电商客服 Agent，覆盖订单、商品、物流和退款等工具工作流。
+- 设计本地工具/MCP 双通道调度与故障降级，并通过工具白名单隔离售前、售后、投诉三个子 Agent 的权限。
+- 实现双后端 RAG、会话记忆、Skill 按需加载和 Sandbox 评估框架，覆盖工具调用、Token 成本、回答质量与忠实度等指标。
 
 ## License
 
