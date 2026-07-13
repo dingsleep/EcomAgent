@@ -12,6 +12,7 @@ from app.agent.tools.user_orders import list_user_orders
 from app.agent.tools.memory_tool import recall_user_memory
 from app.agent.tools.skill_tool import load_skill
 from app.agent.tools.coupon import query_coupons
+from app.agent.tools.complaint import escalate_complaint
 
 _TOOL_MAP: dict[str, Callable] = {
     "query_order": query_order,
@@ -23,6 +24,7 @@ _TOOL_MAP: dict[str, Callable] = {
     "recall_user_memory": recall_user_memory,
     "load_skill": load_skill,
     "query_coupons": query_coupons,
+    "escalate_complaint": escalate_complaint,
 }
 
 TOOL_DEFINITIONS: list[dict] = [
@@ -124,7 +126,7 @@ TOOL_DEFINITIONS: list[dict] = [
         "type": "function",
         "function": {
             "name": "apply_refund",
-            "description": "为指定订单申请退款。注意：这是一个敏感操作，调用前应先与用户确认",
+            "description": "为指定订单申请退款。必须先明确征得用户确认，并将 confirmed 设为 true",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -135,6 +137,15 @@ TOOL_DEFINITIONS: list[dict] = [
                     "reason": {
                         "type": "string",
                         "description": "退款原因，例如「尺码不合适」「质量问题」「不想要了」",
+                    },
+                    "confirmed": {
+                        "type": "boolean",
+                        "description": "用户是否已明确确认提交退款申请",
+                        "default": False,
+                    },
+                    "request_id": {
+                        "type": "string",
+                        "description": "可选的退款请求唯一标识，用于重试时避免重复提交",
                     },
                 },
                 "required": ["order_id", "reason"],
@@ -203,6 +214,23 @@ TOOL_DEFINITIONS: list[dict] = [
                     }
                 },
                 "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "escalate_complaint",
+            "description": "创建投诉升级记录并转交人工客服跟进。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "summary": {
+                        "type": "string",
+                        "description": "用户投诉内容摘要",
+                    }
+                },
+                "required": ["summary"],
             },
         },
     },

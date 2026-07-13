@@ -8,6 +8,7 @@ from app.agent.summarizer import summarize
 from app.config.settings import settings
 from app.prompts.customer_service import SYSTEM_PROMPT
 from app.schemas.response import CustomerServiceResponse, IntentType
+from app.agent.fast_path import try_fast_path
 from app.agent.tools.manager import ToolManager
 
 
@@ -72,9 +73,10 @@ class EcomAgent:
         """处理用户输入：ReAct 循环 → 结构化提取 → 返回结果"""
         self.raw_messages.append({"role": "user", "content": user_input})
 
-        final_text = self._react_loop()
-
-        result = self._extract_structured_response(final_text)
+        result = try_fast_path(user_input, self.tool_manager.execute_tool)
+        if result is None:
+            final_text = self._react_loop()
+            result = self._extract_structured_response(final_text)
 
         self.memory_manager.update_short_term(self.raw_messages[-6:])
 

@@ -28,6 +28,12 @@ from app.prompts.evaluation import (
 from app.evaluation.trace import ToolObservation
 
 
+FACT_TOOLS = {
+    "query_order", "query_product", "query_logistics", "apply_refund",
+    "search_knowledge", "list_user_orders", "escalate_complaint",
+}
+
+
 # ============================================================
 # 过程指标（代码规则）
 # ============================================================
@@ -150,10 +156,6 @@ def judge_faithfulness(
     返回 (1.0 忠实 / 0.0 有幻觉, reason)。解析失败返回 (0.0, 原因)。
     """
     # 仅保留会返回事实数据的工具（排除 load_skill、recall_user_memory 等辅助工具）
-    FACT_TOOLS = {
-        "query_order", "query_product", "query_logistics", "apply_refund",
-        "search_knowledge", "list_user_orders",
-    }
     factual_obs = [o for o in observations if o.name in FACT_TOOLS]
     if factual_obs:
         obs_text = "\n".join(
